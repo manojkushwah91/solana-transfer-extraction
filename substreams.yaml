@@ -1,0 +1,36 @@
+specVersion: v0.1.0
+package:
+  name: solana_transfer_extraction
+  version: v0.1.0
+  description: Extracts SPL Token transfers
+
+imports:
+  solana: https://spkg.io/streamingfast/solana-common-v0.4.0.spkg
+
+protobuf:
+  files:
+    - mydata.proto
+  importPaths:
+    - ./proto
+
+binaries:
+  default:
+    type: wasm/rust-v1+wasm-bindgen-shims
+    file: ./target/wasm32-unknown-unknown/release/substreams.wasm
+
+modules:
+  - name: map_filtered_transactions
+    use: solana:transactions_by_programid_and_account_without_votes
+    initialBlock: 385870151
+
+  - name: map_extract_transfers
+    kind: map
+    inputs:
+      - map: map_filtered_transactions
+    output:
+      type: proto:mydata.Transfers
+
+network: solana-mainnet-beta
+
+params:
+  map_filtered_transactions: program:TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
