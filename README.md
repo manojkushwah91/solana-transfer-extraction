@@ -40,34 +40,6 @@ Output: Filtered sf.solana.type.v1.Transactions (or similar)
 Purpose: Retains only transactions interacting with specified Program IDs. Drops votes (~80% of traffic).
 Params examples (pass via -p or manifest):
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Use CaseParam CommandSPL Token (classic)program:TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DAToken-2022 (extensions)program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEbNative SOL transfersprogram:11111111111111111111111111111111SPL + Token-2022`program:Tokenkeg...Specific token/DEXAdd custom logic in map_my_data (e.g., mint filter)
 map_my_data
 Kind: map
