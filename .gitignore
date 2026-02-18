@@ -13,5 +13,5 @@ sink-data/
 gui_*.txt
 transfers_*.json
 substreams-*.log
-program/
+program*/
 
