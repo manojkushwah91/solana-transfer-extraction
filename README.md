@@ -1,63 +1,110 @@
-# Solana Transfer Extraction Substreams
+# Solana Transfer Extraction — Substreams
 
-[![Substreams](https://img.shields.io/badge/Powered%20by-Substreams-blueviolet)](https://substreams.dev)
-[![Solana](https://img.shields.io/badge/Solana-00d1b2?logo=solana&logoColor=white)](https://solana.com)
+[![Powered by Substreams](https://img.shields.io/badge/Powered%20by-Substreams-blueviolet)](https://substreams.dev)
+[![Solana](https://img.shields.io/badge/Solana-00d1b2?logo=solana\&logoColor=white)](https://solana.com)
 
-Extract clean **token transfers** (SPL + Token-2022) and **native SOL transfers** from Solana blockchain in real-time.
+Extract **clean, structured transfer events** from the Solana blockchain using **Substreams**.
 
-Built from `sol-hello-world` template. Filters transactions by Program ID → parses instructions → outputs structured transfer events (Protobuf).
+This Substreams package indexes:
 
-Perfect for wallets, analytics dashboards, DeFi monitors, and on-chain indexing.
+* **SPL Token transfers**
+* **Token-2022 transfers**
+* **Native SOL transfers**
+
+It filters transactions by **Program ID**, parses instructions deterministically, and emits **Protobuf-encoded transfer events** suitable for analytics, wallets, dashboards, and sinks (SQL, Kafka, Parquet, etc.).
+
+Built from the `sol-hello-world` template and hardened for real-world Solana traffic.
+
+---
 
 ## ✨ Features
 
-- Filters by Program IDs (SPL Token, Token-2022, System Program)
-- Automatically excludes noisy vote transactions (~80% of traffic)
-- Custom parsing for transfers (amount, from/to, mint, authority)
-- Ready for foundational modules (`solana-spl-token`, etc.)
-- GUI testing, CLI runs, SQL/Kafka/Parquet sinks
-- Registry publishing ready
+* Program-ID–based transaction filtering
+  (SPL Token, Token-2022, System Program)
+* Automatic exclusion of vote transactions (~80% of chain traffic)
+* Deterministic instruction parsing (no RPC calls)
+* Unified output for SPL + Token-2022 + native SOL
+* Protobuf-first design (JSON supported for testing)
+* GUI-friendly for rapid iteration
+* Registry-publishable Substreams package
 
-## 🚀 Quick Start
+---
 
-```bash
-# 1. Build WASM binary
-substreams build
+## 🧱 Architecture Overview
 
-# 2. Authenticate for mainnet
-substreams auth
-
-# 3. Launch GUI (recommended for testing)
-substreams gui
-📦 Modules
+```
+Solana Block
+   ↓
 map_filtered_transactions
-Kind: map
-Input: sf.solana.type.v1.Block
-Output: Filtered sf.solana.type.v1.Transactions
-Purpose: Retains transactions for specified Program IDs, drops votes.
-
-Params:| Use Case         | Param Command                                       |
-| ---------------- | --------------------------------------------------- |
-| SPL Token        | program:TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA |
-| Token-2022       | program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb |
-| Native SOL       | program:11111111111111111111111111111111            |
-| SPL + Token-2022 | Multiple program:... params                         |
-
+   ↓
 map_my_data
-Kind: map
-Input: map_filtered_transactions output
-Output: Custom TokenTransfer Protobuf
-Purpose: Parse instructions → extract clean transfers.
+   ↓
+TokenTransfer (Protobuf)
+```
 
-Key Parsing:
+---
 
-SPL Transfer: Instruction 0x03
+## 📦 Modules
 
-System Transfer (SOL): 0x02 or balance deltas
+### `map_filtered_transactions`
 
-Decodes: from/to (base58), amount (u64), mint, authority
+**Kind:** `map`
+**Input:** `sf.solana.type.v1.Block`
+**Output:** `sf.solana.type.v1.Transactions`
 
-Protobuf Output (proto/transfers.proto):message TokenTransfer {
+**Purpose**
+
+* Keeps only transactions involving selected Program IDs
+* Drops vote transactions early to reduce noise and cost
+
+**Parameters**
+
+| Use Case          | Parameter Value                                       |
+| ----------------- | ----------------------------------------------------- |
+| SPL Token         | `program:TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA` |
+| Token-2022        | `program:TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb` |
+| Native SOL        | `program:11111111111111111111111111111111`            |
+| Multiple Programs | Repeat `program:` parameter                           |
+
+---
+
+### `map_my_data`
+
+**Kind:** `map`
+**Input:** `map_filtered_transactions`
+**Output:** `TokenTransfer` (custom Protobuf)
+
+**Purpose**
+
+* Parses instructions
+* Extracts normalized transfer events
+
+**Parsing Logic**
+
+* **SPL / Token-2022**
+
+  * Instruction: `Transfer` (`0x03`)
+* **Native SOL**
+
+  * System Program `Transfer` (`0x02`)
+  * Balance deltas (fallback)
+
+**Decoded Fields**
+
+* Sender / recipient (base58)
+* Amount (`u64`)
+* Mint address or `"native"`
+* Token program
+* Slot, block time, transaction signature
+
+---
+
+## 📜 Protobuf Schema
+
+`proto/transfers.proto`
+
+```proto
+message TokenTransfer {
   string tx_signature  = 1;
   uint64 slot          = 2;
   uint64 block_time    = 3;
@@ -68,37 +115,86 @@ Protobuf Output (proto/transfers.proto):message TokenTransfer {
   string token_program = 8;
   bool   is_native_sol = 9;
 }
+```
 
-⚡ Example Commands
-SPL Token filtering + JSON:substreams run -e mainnet.sol.streamingfast.io:443 \
+---
+
+## 🚀 Quick Start
+
+### 1. Build the WASM
+
+```bash
+substreams build
+```
+
+### 2. Authenticate (mainnet)
+
+```bash
+substreams auth
+```
+
+### 3. Launch GUI (recommended)
+
+```bash
+substreams gui
+```
+
+---
+
+## ⚡ Example CLI Run
+
+Filter SPL Token transfers and output JSON:
+
+```bash
+substreams run -e mainnet.sol.streamingfast.io:443 \
   substreams.yaml map_my_data \
   -s -1000 \
   -p map_filtered_transactions="program:TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" \
   --output json
+```
 
-Publish to Registry:substreams registry login
+---
+
+## 📤 Publishing to Registry
+
+```bash
+substreams registry login
 substreams registry publish
+```
 
-🛠 Next Steps
-Define Protobuf messages in proto/
+---
 
-Update substreams.yaml → set output_type
+## 🧩 Imports (Recommended)
 
-Implement decoding (solana-program, borsh, imported modules)
-
-Test with high-volume tokens (USDC, SOL)
-
-Add sinks: substreams-sink-sql, Kafka, Parquet
-
-Enhance with imports (substreams.yaml):imports:
+```yaml
+imports:
   solana_common: streamingfast/solana-common@v0.3.0
   spl_token: streamingfast/solana-spl-token@v0.1.4
+```
 
-📚 Resources
-Solana Token Program
+---
 
-SPL Token Module
+## 🛠 Next Steps
 
-Substreams Docs
+* Expand instruction coverage (Approve, Burn, Mint)
+* Add multi-sink examples:
 
-Happy building on Solana! 🚀
+  * `substreams-sink-sql`
+  * Kafka
+  * Parquet / Lakehouse
+* Validate against high-volume tokens (USDC, USDT)
+* Add replayable test vectors
+* Optional: aggregate per-block or per-wallet stats
+
+---
+
+## 📚 Resources
+
+* Solana Token Program Docs
+* Substreams Documentation
+* SPL Token Reference Modules
+
+---
+
+Happy building on Solana 🚀
+This Substreams is designed to stay **fast, deterministic, and indexer-friendly**.
