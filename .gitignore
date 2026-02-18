@@ -9,3 +9,9 @@ sink-data/
 
 # The spkg packed by the subtreams cli
 *.spkg
+*.log
+gui_*.txt
+transfers_*.json
+substreams-*.log
+program/
+
